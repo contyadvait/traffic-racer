@@ -5,7 +5,7 @@ https://sprig.hackclub.com/gallery/getting_started
 @title: Traffic Racer 2D
 @author: advaitconty
 @tags: []
-@addedOn: 2024-00-00
+@addedOn: 2024-08-05
 */
 
 const player = "p"
@@ -16,8 +16,13 @@ const explosion = "E"
 const obstacle = "o"
 var playing = false
 var speed = 100
-let intervalId
+let gameIntervalId
 let spawnIntervalId
+let speedIntervalId
+var endGame = false
+var distanceTravelled = 0
+var offRoaded = 0
+var spriteAdded = false
 
 setLegend(
   [explosion, bitmap`
@@ -42,14 +47,14 @@ setLegend(
 ................
 ................
 ................
-4004444444400444
-3444444444444446
-34774LLLLL477446
-44774LLLLL477444
-44774LLLLL477444
-34774LLLLL477446
-3444444444444446
-4004444444400444
+.40044444440044.
+.34444444444446.
+.34774LLL477746.
+.44774LLL477744.
+.44774LLL477744.
+.34774LLL477746.
+.34444444444446.
+.40044444440044.
 ................
 ................
 ................
@@ -59,14 +64,14 @@ setLegend(
 ................
 ................
 ................
-8008888888800888
-8888888888888886
-38778LLLLL877886
-38778LLLLL877888
-38778LLLLL877888
-38778LLLLL877886
-8888888888888886
-8008888888800888
+.80088888880088.
+.88888888888886.
+.38778LLL877886.
+.38778LLL877888.
+.38778LLL877888.
+.38778LLL877886.
+.88888888888886.
+.80088888880088.
 ................
 ................
 ................
@@ -146,27 +151,62 @@ function getRandomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+function updateSpeed(speed) {
+ clearInterval(speedIntervalId)
+  speedIntervalId = setInterval(changeSpeed, speed)
+}
+
+function changeSpeed() {
+  const playerSprite = getFirst(player);
+  playerSprite.x -= 1
+}
+
 function spawnCar() {
+  if (playing == true) {
   var coordinateX = getRandomInt(3, 4)
   addSprite(getRandomInt(3, 4), getRandomInt(1, 3), obstacle);
+  } else {
+    const allObstacles = getAll(obstacle)
+    allObstacles.forEach(obstacle => {
+      obstacle.remove()
+    })
+  }
+}
+
+function detectCollision() {
+  const playerSprite = getFirst(player);
+  const allObstacles = getAll(obstacle);
+
+  allObstacles.forEach(obstacle => {
+    if (playerSprite.x === obstacle.x && playerSprite.y === obstacle.y) {
+      addSprite(playerSprite.x, playerSprite.y, explosion)
+      endGame = true
+      playing = false
+      addText("Game Over!", {x: 5, y: 3, color: color`2`})
+      addText(`You went\n${((distanceTravelled - offRoaded) / 1000).toString()} km`, {x: 6, y: 5, color: color`2`})
+      addText("Press i\nto restart", {x: 5, y: 9, color:color`2`})
+    }
+  });
 }
 
 function startGame() {
   if (playing == true) {
     // Get all obstacle sprites
-    const allObstacles = getAll(obstacle)
-
-    // Iterate over each obstacle sprite
-    allObstacles.forEach(obstacle => {
-      // Check if obstacle is at x-coordinate 0 and remove it
+  const allObstacles = getAll(obstacle)  
+  allObstacles.forEach(obstacle => {
       if ((obstacle.x - 1) === -1) {
-        obstacle.remove(); // Remove the obstacle sprite
+        obstacle.remove();
       } else {
         obstacle.x -= 1;
       }
-
-      // You can perform more actions here based on your game logic
     })
+    distanceTravelled += 1
+
+    const playerSprite = getFirst(player)
+
+    if (playerSprite.y === 0 || playerSprite.y === 4) {
+      offRoaded += 1
+    }
   }
 }
 
@@ -176,10 +216,20 @@ addText("Press I\n\nto start", { x: 6, y: 8, color: color`2`, font: "Arial" })
 
 onInput("i", () => {
   playing = true
+  if (spriteAdded == false) {
   addSprite(1, 2, player)
+    spriteAdded = true
+  }
   clearText()
-  setInterval(startGame, getRandomInt(800, 1200))
-  spawnIntervalId = setInterval(spawnCar, getRandomInt(3000, 5000))
+  gameIntervalId = setInterval(startGame, getRandomInt(800, 1200))
+  spawnIntervalId = setInterval(spawnCar, getRandomInt(1000, 1500))
+  setInterval(detectCollision, 1000)
+
+  const allExplosions = getAll(explosion);
+
+  allExplosions.forEach(explosionSprite => {
+    explosionSprite.remove();
+  });
 })
 
 onInput("w", () => {
@@ -195,8 +245,9 @@ onInput("w", () => {
 
 onInput("a", () => {
   if (playing == true) {
-    speed += 100
+    speed += 10
     updateSpeed(speed)
+    getFirst(player).x -= 1
   }
 })
 
@@ -208,8 +259,9 @@ onInput("s", () => {
 
 onInput("d", () => {
   if (playing == true) {
-    speed -= 100
+    speed -= 10
     updateSpeed(speed)
+    getFirst(player).x += 1
   }
 })
 
